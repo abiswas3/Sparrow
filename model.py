@@ -4,7 +4,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 import numpy as np
 from sklearn.metrics import *
 
-# general purpose shit everythone should have
+# general purpose shit everyone should have
 from utils import *
 
 from jack import Jack
@@ -26,7 +26,7 @@ class ImageClassifier(object):
 
         if self.sess != None:
             y_probs_noiseless = self.sess.run(self.y_hat, feed_dict={self.input_data: xvals})
-            return [np.argmax(i) for i in y_probs_noiseless]
+            return np.array([np.argmax(i) for i in y_probs_noiseless])
         else:
             print("We have not learned a classifier")
             return []
@@ -91,24 +91,36 @@ if __name__ == '__main__':
     # Import data as tensors
     mnist = input_data.read_data_sets("./MNIST_data/",
                                       one_hot=True)
+
+    # Train a classifier
     im = ImageClassifier(784, 10)
     im.train()
 
+    # Now i have access to the learned model (this is the stronger assumption)
+    # in the next one we'll get a substitute model trained and we will use that instead
 
-    # grads  = im.get_gradient(mnist.test.images,
-    #                          mnist.test.labels)
+    # Jack needs some labels to generate gradients
+    # So we use our model to label the data and use those as the true labels
+    # (so not using the real labels)
+    y_truth = [np.argmax(i) for i in mnist.test.labels]
+    y_pred = im.oracle(mnist.test.images)
+    
+    j  = Jack()    
+    fake_labels = np.zeros((mnist.test.labels.shape))    
+    for i,p in enumerate(y_pred):
+        fake_labels[i, p] = 1
 
-    j = Jack()
+    # these our the bad ones
     pirates = j.turn_em_into_a_pirate(mnist.test.images,
-                                      mnist.test.labels,
+                                      fake_labels,
                                       im,
                                       eps=0.07,
                                       num_test_images = 'all')
 
     y_bad   = im.oracle(pirates)
-    y_pred  = im.oracle(mnist.test.images)
-    y_truth = [np.argmax(i) for i in mnist.test.labels]
 
-    print('Pred: {} Jacked: {}'.format(accuracy_score(y_truth, y_pred),
+    # finally print out the difference in 
+    print('Pred: {} Jacked: {}\n'.format(accuracy_score(y_truth, y_pred),
                                        accuracy_score(y_truth, y_bad)))
                                        
+    print('We have cocked it up')
