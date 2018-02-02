@@ -40,7 +40,6 @@ class Jack(object):
         lvals = test_labels[:num_test_images]
 
         # Get gradient so i can update eta
-        print("Getting grads\n")
         grvar = model.get_gradient(xvals, lvals)
 
         adv = np.zeros(xvals.shape)

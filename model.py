@@ -12,21 +12,44 @@ from jack import Jack
 class ImageClassifier(object):
 
     def __init__(self,
+                 data,
+                 labels,
                  num_dimensions,
-                 num_classes):
+                 num_classes,
+                 learning_rate=0.1,
+                 batch_size=100):
 
+        self.data = data
+        self.labels = labels
         self.num_dimensions = num_dimensions
         self.num_classes    = num_classes
-        self.sess           = None
+        self.sess           = tf.Session()
+        self.learning_rate  = 0.1
+        self.batch_size     = batch_size
         self.build_model()
 
-
-
+    
     def oracle(self, xvals):
 
         if self.sess != None:
-            y_probs_noiseless = self.sess.run(self.y_hat, feed_dict={self.input_data: xvals})
-            return np.array([np.argmax(i) for i in y_probs_noiseless])
+            y = self.sess.run(self.y_hat,
+                                 feed_dict={self.input_data: xvals})
+
+            out = np.zeros((len(xvals), self.num_classes))
+            for i, p in enumerate(y):
+                out[i, np.argmax(p)] = 1
+            return out
+        else:
+            print("We have not learned a classifier")
+            return []
+
+
+    def oracle_probs(self, xvals):
+
+        if self.sess != None:
+            return self.sess.run(self.y_hat,
+                                 feed_dict={self.input_data: xvals})
+            
         else:
             print("We have not learned a classifier")
             return []
@@ -66,23 +89,31 @@ class ImageClassifier(object):
         # function to get gradient value
         self.gv = tf.gradients(self.loss, [self.input_data])[0]
 
+    def get_next_batch(self, batch_size):
+
+        # make this dumb for now
+        inds = np.arange(len(self.labels))
+
+        if self.batch_size < len(self.labels):
+            inds = np.random.choice(inds, size=batch_size, replace=True)
+            return self.data[inds], self.labels[inds]
+        else:
+            return self.data, self.labels
+        
     def train(self):
 
-        sess =  tf.Session()
-        self.sess = sess
+        sess =  self.sess
 
         sess.run(tf.global_variables_initializer())
 
         # Learning
         for step in range(1000):
-            # make batches of data and labels
-            batch_xs, batch_ys = mnist.train.next_batch(100)
-
+            batch_xs, batch_ys = self.get_next_batch(self.batch_size)
+            
             # Trainining step
             _ = sess.run([self.optimizer],
                          feed_dict={self.input_data  : batch_xs,
                                     self.input_labels: batch_ys})
-
 
         print('Training finished')
 
@@ -93,7 +124,11 @@ if __name__ == '__main__':
                                       one_hot=True)
 
     # Train a classifier
-    im = ImageClassifier(784, 10)
+    im = ImageClassifier(mnist.train.images,
+                         mnist.train.labels,
+                         784,
+                         10)
+    
     im.train()
 
     # Now i have access to the learned model (this is the stronger assumption)
@@ -102,26 +137,26 @@ if __name__ == '__main__':
     # Jack needs some labels to generate gradients
     # So we use our model to label the data and use those as the true labels
     # (so not using the real labels)
-    y_truth = [np.argmax(i) for i in mnist.test.labels]
-    y_pred = im.oracle(mnist.test.images[:])
+    y_truth =  [np.argmax(i) for i in mnist.test.labels]
+    y_pred =  [np.argmax(i) for i in im.oracle(mnist.test.images[:])]    
     print('Pred: {}\n'.format(accuracy_score(y_truth, y_pred)))
     
-    # j  = Jack()    
-    # fake_labels = np.zeros((mnist.test.labels.shape))    
-    # for i,p in enumerate(y_pred):
-    #     fake_labels[i, p] = 1
+    j  = Jack()    
+    fake_labels = np.zeros((mnist.test.labels.shape))    
+    for i,p in enumerate(y_pred):
+        fake_labels[i, p] = 1
 
-    # # these our the bad ones
-    # pirates = j.turn_em_into_a_pirate(mnist.test.images,
-    #                                   fake_labels,
-    #                                   im,
-    #                                   eps=0.07,
-    #                                   num_test_images = 'all')
+    # these our the bad ones
+    pirates = j.turn_em_into_a_pirate(mnist.test.images,
+                                      fake_labels,
+                                      im,
+                                      eps=0.07,
+                                      num_test_images = 'all')
 
-    # y_bad   = im.oracle(pirates)
+    y_bad   = [np.argmax(i) for i in im.oracle(pirates)]
 
-    # # finally print out the difference in 
-    # print('Pred: {} Jacked: {}\n'.format(accuracy_score(y_truth, y_pred),
-    #                                    accuracy_score(y_truth, y_bad)))
+    # finally print out the difference in 
+    print('Pred: {} Jacked: {}\n'.format(accuracy_score(y_truth, y_pred),
+                                       accuracy_score(y_truth, y_bad)))
                                        
-    # print('We have cocked it up')
+    print('We have cocked it up')
