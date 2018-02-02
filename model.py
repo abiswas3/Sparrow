@@ -103,24 +103,25 @@ if __name__ == '__main__':
     # So we use our model to label the data and use those as the true labels
     # (so not using the real labels)
     y_truth = [np.argmax(i) for i in mnist.test.labels]
-    y_pred = im.oracle(mnist.test.images)
+    y_pred = im.oracle(mnist.test.images[:])
+    print('Pred: {}\n'.format(accuracy_score(y_truth, y_pred)))
     
-    j  = Jack()    
-    fake_labels = np.zeros((mnist.test.labels.shape))    
-    for i,p in enumerate(y_pred):
-        fake_labels[i, p] = 1
+    # j  = Jack()    
+    # fake_labels = np.zeros((mnist.test.labels.shape))    
+    # for i,p in enumerate(y_pred):
+    #     fake_labels[i, p] = 1
 
-    # these our the bad ones
-    pirates = j.turn_em_into_a_pirate(mnist.test.images,
-                                      fake_labels,
-                                      im,
-                                      eps=0.07,
-                                      num_test_images = 'all')
+    # # these our the bad ones
+    # pirates = j.turn_em_into_a_pirate(mnist.test.images,
+    #                                   fake_labels,
+    #                                   im,
+    #                                   eps=0.07,
+    #                                   num_test_images = 'all')
 
-    y_bad   = im.oracle(pirates)
+    # y_bad   = im.oracle(pirates)
 
-    # finally print out the difference in 
-    print('Pred: {} Jacked: {}\n'.format(accuracy_score(y_truth, y_pred),
-                                       accuracy_score(y_truth, y_bad)))
+    # # finally print out the difference in 
+    # print('Pred: {} Jacked: {}\n'.format(accuracy_score(y_truth, y_pred),
+    #                                    accuracy_score(y_truth, y_bad)))
                                        
-    print('We have cocked it up')
+    # print('We have cocked it up')
