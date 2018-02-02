@@ -138,7 +138,7 @@ class Substitute(object):
                          feed_dict={self.input_data  : batch_xs,
                                     self.input_labels: batch_ys})
 
-            
+
     def train(self):
 
         for rho in range(1):
@@ -163,7 +163,9 @@ if __name__ == '__main__':
     mnist = input_data.read_data_sets("./MNIST_data/",
                                       one_hot=True)
 
-    # Train a classifier
+    ##########################################################################
+    # Train a regular classifier that we wisht o break
+    #########################################################################
     target_model = ImageClassifier(mnist.train.images,
                          mnist.train.labels,
                          784,
@@ -171,16 +173,28 @@ if __name__ == '__main__':
 
     target_model.train()
 
-    y_truth =  [np.argmax(i) for i in mnist.test.labels]
-    y_pred =  [np.argmax(i) for i in target_model.oracle(mnist.test.images[:])]    
-    print('Pred: {}\n'.format(accuracy_score(y_truth, y_pred)))
+    ##########################################################################
+    # Pick some data to test this on
+    #########################################################################
+    test_x =  mnist.test.images[:50]
+    test_y =  mnist.test.labels[:50]
     
+    y_truth =  [np.argmax(i) for i in test_y]
+    # Prediction by the classifier i am trying to break
+    y_pred =  [np.argmax(i) for i in target_model.oracle(test_x)]
+    
+    print('Prediction accuracy: {}\n'.format(accuracy_score(y_truth, y_pred)))
+
     ##########################################################################
     # From here on I have no access to any training labels
+    # all i have access is to the target model
     #########################################################################
     print('Training substitute')
     # Train a substitute classifier
-    im = Substitute(mnist.test.images,
+    inds = np.arange(len(mnist.train.images))
+    inds_to_select = np.random.choice(inds, size=5000)
+    
+    im = Substitute(mnist.train.images[inds_to_select],
                     target_model,
                     784,
                     10)
@@ -189,10 +203,13 @@ if __name__ == '__main__':
 
     ##########################################################################
     # Now I use substitute for all my gradients and hope they're good enough
-    #########################################################################    
-    j  = Jack()    
-    fake_labels = np.zeros((mnist.test.labels.shape))
-    y_pred_sub = [np.argmax(i) for i in im.oracle(mnist.test.images[:])]
+    #########################################################################
+    j  = Jack()
+
+    # I need some fake labels to create bad examples: use the labels
+    # by substitute model
+    fake_labels = np.zeros(test_y.shape)
+    y_pred_sub = [np.argmax(i) for i in im.oracle(test_x)]
     for i,p in enumerate(y_pred_sub):
         fake_labels[i, p] = 1
 
@@ -204,8 +221,9 @@ if __name__ == '__main__':
                                       num_test_images = 'all')
 
     y_bad   = [np.argmax(i) for i in im.oracle(pirates)]
-    # finally print out the difference in 
+    
+    # finally print out the difference in
     print('Pred: {} Jacked: {}\n'.format(accuracy_score(y_truth, y_pred),
                                        accuracy_score(y_truth, y_bad)))
-                                       
-    print('We have cocked it up')    
+
+    print('We have cocked it up')
