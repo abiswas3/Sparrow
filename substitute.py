@@ -18,7 +18,8 @@ class Substitute(object):
                  num_dimensions,
                  num_classes,
                  learning_rate=0.1,
-                 batch_size=100):
+                 batch_size=100,
+                 rho=3):
 
         self.data = data
         self.target_model = target_model
@@ -27,6 +28,7 @@ class Substitute(object):
         self.sess           = tf.Session()
         self.learning_rate  = 0.1
         self.batch_size     = batch_size
+        self.rho = rho
         self.build_model()
 
     def oracle(self, xvals):
@@ -99,7 +101,8 @@ class Substitute(object):
 
     def craft_sample_aux(self,
                          x,
-                         predicted_label, eps=0.07):
+                         predicted_label,
+                         eps=0.7):
 
         # This is the Jacbian
         grad = self.get_gradients_wrt_logits({self.input_data: x})
@@ -141,7 +144,7 @@ class Substitute(object):
 
     def train(self):
 
-        for rho in range(1):
+        for rho in range(self.rho):
             print('Rho')
             # label my data
             y_pred      = self.target_model.oracle(self.data)
@@ -167,9 +170,8 @@ if __name__ == '__main__':
     # Train a regular classifier that we wisht o break
     #########################################################################
     target_model = ImageClassifier(mnist.train.images,
-                         mnist.train.labels,
-                         784,
-                         10)
+                                   mnist.train.labels,
+                                   784, 10)
 
     target_model.train()
 
@@ -190,14 +192,16 @@ if __name__ == '__main__':
     # all i have access is to the target model
     #########################################################################
     print('Training substitute')
+    num_training_samples = 500
     # Train a substitute classifier
     inds = np.arange(len(mnist.train.images))
-    inds_to_select = np.random.choice(inds, size=5000)
+    inds_to_select = np.random.choice(inds, size=num_training_samples)
     
     im = Substitute(mnist.train.images[inds_to_select],
                     target_model,
                     784,
-                    10)
+                    10,
+                    rho=10)
 
     im.train()
 
@@ -214,13 +218,13 @@ if __name__ == '__main__':
         fake_labels[i, p] = 1
 
     # these our the bad ones
-    pirates = j.turn_em_into_a_pirate(mnist.test.images,
+    pirates = j.turn_em_into_a_pirate(test_x,
                                       fake_labels,
                                       im,
                                       eps=0.07,
                                       num_test_images = 'all')
 
-    y_bad   = [np.argmax(i) for i in im.oracle(pirates)]
+    y_bad   = [np.argmax(i) for i in target_model.oracle(pirates)]
     
     # finally print out the difference in
     print('Pred: {} Jacked: {}\n'.format(accuracy_score(y_truth, y_pred),

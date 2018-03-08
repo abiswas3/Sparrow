@@ -7,6 +7,19 @@ ENDC = '\033[0m'
 BOLD = '\033[1m'
 UNDERLINE = '\033[4m'
 
+import pickle
+import scipy.misc
+import cv2
 
-def sgn(x):
-    return 1 if x > 0 else (-1 if x < 0 else 0)
+def unpickle(fileName):
+
+    with open(fileName, 'rb') as fo:
+        dict = pickle.load(fo, encoding='bytes')
+    return dict
+
+def write_image_to_file(image, image_path):    
+    return scipy.misc.imsave(image_path, image)
+
+def read_image_from_file(fName):
+
+    return cv2.imread(fName)

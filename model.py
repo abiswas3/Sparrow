@@ -9,6 +9,8 @@ from utils import *
 
 from jack import Jack
 
+from get_cifar_data import make_cifar_data
+
 class ImageClassifier(object):
 
     def __init__(self,
@@ -88,7 +90,8 @@ class ImageClassifier(object):
 
         # function to get gradient value
         self.gv = tf.gradients(self.loss, [self.input_data])[0]
-
+        print(self.gv)
+        
     def get_next_batch(self, batch_size):
 
         # make this dumb for now
@@ -100,20 +103,25 @@ class ImageClassifier(object):
         else:
             return self.data, self.labels
         
-    def train(self):
+    def train(self, epochs=1000):
 
         sess =  self.sess
 
         sess.run(tf.global_variables_initializer())
 
         # Learning
-        for step in range(1000):
+        for step in range(epochs):
             batch_xs, batch_ys = self.get_next_batch(self.batch_size)
-            
+
             # Trainining step
-            _ = sess.run([self.optimizer],
+            _, loss = sess.run([self.optimizer, self.loss],
                          feed_dict={self.input_data  : batch_xs,
                                     self.input_labels: batch_ys})
+
+            if step % 500 == 0:
+                y_truth =  [np.argmax(i) for i in self.labels]
+                y_pred =  [np.argmax(i) for i in self.oracle(self.data)]    
+                print('{} training_accuracy: {}\n'.format(step, accuracy_score(y_truth, y_pred)))
 
         print('Training finished')
 
@@ -123,13 +131,17 @@ if __name__ == '__main__':
     mnist = input_data.read_data_sets("./MNIST_data/",
                                       one_hot=True)
 
-    # Train a classifier
-    im = ImageClassifier(mnist.train.images,
-                         mnist.train.labels,
-                         784,
-                         10)
+    # data, description, wide_labels = make_cifar_data()
     
-    im.train()
+    # Train a classifier
+    data = mnist.train.images
+    labels = mnist.train.labels
+    im = ImageClassifier( data,
+                          labels,
+                          len(data[0]),
+                          10)
+    
+    im.train(epochs=5000)
 
     # Now i have access to the learned model (this is the stronger assumption)
     # in the next one we'll get a substitute model trained and we will use that instead
@@ -138,7 +150,7 @@ if __name__ == '__main__':
     # So we use our model to label the data and use those as the true labels
     # (so not using the real labels)
     y_truth =  [np.argmax(i) for i in mnist.test.labels]
-    y_pred =  [np.argmax(i) for i in im.oracle(mnist.test.images[:])]    
+    y_pred =  [np.argmax(i) for i in im.oracle(mnist.test.images[:])]
     print('Pred: {}\n'.format(accuracy_score(y_truth, y_pred)))
     
     j  = Jack()    

@@ -15,8 +15,8 @@ class Jack(object):
         '''
         Goodfellow badify
         '''
-        eta = np.array([eps*sgn(i) for i in gr])
-
+        eta = np.sign(gr)*eps
+        
         return x+eta
 
     def uniform_noisify(self,
